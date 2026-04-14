@@ -1,0 +1,8 @@
+build
+.vscode
+generated
+pico-sdk
+pioasm
+pioasm-install
+
+.cache/
