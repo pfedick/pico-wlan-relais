@@ -52,9 +52,10 @@ private:
 
 public:
     WlanRelais();
+    void init_wlan();
     void run();
-
     void MessageBox(const picopplib::String& subject, const picopplib::String& message);
+    void Debug(const picopplib::String& message);
 };
 
 #endif // WLANRELAIS_H

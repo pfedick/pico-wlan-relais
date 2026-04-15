@@ -6,3 +6,4 @@ pioasm
 pioasm-install
 
 .cache/
+.env

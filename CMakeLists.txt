@@ -31,6 +31,19 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
+# .env Datei einlesen
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.env")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/.env" ENV_LINES)
+    foreach(LINE ${ENV_LINES})
+        if(LINE MATCHES "^([^=]+)=(.*)$")
+            set(${CMAKE_MATCH_1} ${CMAKE_MATCH_2})
+        endif()
+    endforeach()
+else()
+    message(WARNING ".env nicht gefunden!")
+endif()
+
+
 project(wlanrelais C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
@@ -87,6 +100,11 @@ target_include_directories(wlanrelais PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/resources
         ${CMAKE_CURRENT_LIST_DIR}/pico-pplib/include
 )
+# Compile Definitions
+target_compile_definitions(wlanrelais PRIVATE
+    WIFI_SSID="${WIFI_SSID}"
+    WIFI_PASSWORD="${WIFI_PASSWORD}"
+)
 
 target_include_directories(wlanrelais PRIVATE include)
 
@@ -98,7 +116,8 @@ target_link_libraries(wlanrelais
         hardware_pio
         hardware_dma
         hardware_watchdog
-        pico_cyw43_arch_none
+#        pico_cyw43_arch_none
+        pico_cyw43_arch_lwip_threadsafe_background 
         
         )
 

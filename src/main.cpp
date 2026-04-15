@@ -13,7 +13,9 @@
 #include "pico/util/datetime.h"
 #include "hardware/watchdog.h"
 #include "pico/bootrom.h"
-
+#include "pico/cyw43_arch.h"
+#include "lwip/netif.h"
+#include "lwip/ip4_addr.h"
 #include "wlanrelais.h"
 
 #include "oled.h"
@@ -35,6 +37,7 @@ int main()
     picopplib::String data;
 
     WlanRelais relais;
+    relais.init_wlan();
     relais.run();
     return 0;
 }
@@ -101,7 +104,7 @@ void WlanRelais::enterUsbBoot()
 void WlanRelais::run()
 {
     uint32_t start_time_ms = to_ms_since_boot(get_absolute_time());
-    MessageBox("WlanRelais", "Running...");
+    // MessageBox("WlanRelais", "Running...");
     lights.putPixel(0, picopplib::Color(0, 16, 0));
     lights.write();
     while (1) {
@@ -220,4 +223,71 @@ void WlanRelais::MessageBox(const picopplib::String& subject, const picopplib::S
     }
     // screen.print(font, 0, 18, message);
     oled.draw(screen);
+}
+
+void WlanRelais::Debug(const picopplib::String& message)
+{
+    picopplib::Font font;
+    font.setColor(picopplib::Color(255, 255, 255));
+    font.setOrientation(picopplib::Font::Orientation::TOP);
+    font.setSize(10);
+    font.setBold(false);
+    screen.clear(0);
+    picopplib::Array lines = wrapString(font, message, 128);
+
+    int y = 0;
+    for (const auto& line : lines) {
+        if (y > 64) break;
+        screen.print(font, 0, y, line);
+        y += font.size();
+        if (y > 64) break;
+    }
+
+    oled.draw(screen);
+}
+
+void WlanRelais::init_wlan()
+{
+    if (cyw43_arch_init_with_country(CYW43_COUNTRY_GERMANY)) {
+        MessageBox("WlanRelais", "Wi-Fi init failed");
+        return;
+    }
+    cyw43_arch_enable_sta_mode();
+
+    sleep_ms(100);
+    uint8_t mac[6];
+    int res = cyw43_wifi_get_mac(&cyw43_state, CYW43_ITF_STA, mac);
+    picopplib::String macStr;
+    if (res == 0) {
+        // Formatierung in einen String (Hexadezimal)
+        macStr = picopplib::ToString("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        MessageBox("WlanRelais", "MAC-Address:\n" + macStr);
+    }
+
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 60000)) {
+        int status = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
+        picopplib::String errorMsg;
+
+        switch (status) {
+        case CYW43_LINK_BADAUTH:
+            errorMsg = "Bad Auth - falsches Passwort?";
+            break;
+        case CYW43_LINK_NONET:
+            errorMsg = "No Network - SSID nicht gefunden";
+            break;
+        case CYW43_LINK_FAIL:
+            errorMsg = "Link Fail - Verbindung abgebrochen";
+            break;
+        default:
+            errorMsg = picopplib::ToString("Status: %d", status);
+            break;
+        }
+
+        Debug(errorMsg + "\nMAC:\n" + macStr);
+
+    } else {
+        const ip4_addr_t* ip = netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]);
+        picopplib::String ipStr = picopplib::ToString("%d.%d.%d.%d", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
+        MessageBox("Connected!", "IP: " + ipStr + "\nMAC:\n" + macStr);
+    }
 }
