@@ -48,14 +48,19 @@ private:
     void initGpio();
     void initDisplay();
     void enterUsbBoot();
-    void activateRelais(bool activate);
 
 public:
     WlanRelais();
     void init_wlan();
+    void init_http_server();
     void run();
     void MessageBox(const picopplib::String& subject, const picopplib::String& message);
     void Debug(const picopplib::String& message);
+    void activateRelais(bool activate);
+    bool isRelaisActive() const
+    {
+        return relais_state == 1;
+    }
 };
 
 #endif // WLANRELAIS_H

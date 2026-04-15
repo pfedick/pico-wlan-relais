@@ -16,10 +16,15 @@
 #include "pico/cyw43_arch.h"
 #include "lwip/netif.h"
 #include "lwip/ip4_addr.h"
+#include "lwip/apps/httpd.h"
+#include "lwip/apps/fs.h"
+
 #include "wlanrelais.h"
 
 #include "oled.h"
 #include "lightstrip.h"
+
+WlanRelais* g_relais = NULL;
 
 int main()
 {
@@ -37,6 +42,7 @@ int main()
     picopplib::String data;
 
     WlanRelais relais;
+
     relais.init_wlan();
     relais.run();
     return 0;
@@ -46,6 +52,7 @@ WlanRelais::WlanRelais()
 {
     initGpio();
     initDisplay();
+    g_relais = this;
 }
 
 void WlanRelais::initGpio()
@@ -114,9 +121,9 @@ void WlanRelais::run()
             enterUsbBoot();
         }
         if (gpio_get(RELAIS_BUTTON) == 0) {
-            activateRelais(true);
+            // activateRelais(true);
         } else {
-            activateRelais(false);
+            // activateRelais(false);
         }
 
         led_blinking_task();
@@ -289,5 +296,93 @@ void WlanRelais::init_wlan()
         const ip4_addr_t* ip = netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]);
         picopplib::String ipStr = picopplib::ToString("%d.%d.%d.%d", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
         MessageBox("Connected!", "IP: " + ipStr + "\nMAC:\n" + macStr);
+        init_http_server();
     }
+}
+
+#include "lwip/apps/httpd.h"
+#include "lwip/apps/fs.h"
+
+// Custom Handler für JSON-Response
+err_t httpd_post_begin(void* connection,
+                       const char* uri,
+                       const char* http_request,
+                       u16_t http_request_len,
+                       int content_len,
+                       char* response_uri,
+                       u16_t response_uri_len,
+                       u8_t* post_auto_wnd)
+{
+    if (strncmp(uri, "/api/relay", 10) == 0) {
+        // JSON wird direkt geschrieben
+        return ERR_OK;
+    }
+    return ERR_VAL;
+}
+
+err_t httpd_post_receive_data(void* connection, struct pbuf* p)
+{
+    // Daten empfangen (für POST)
+    return ERR_OK;
+}
+
+void httpd_post_finished(void* connection, char* response_uri, u16_t response_uri_len)
+{
+    // Antwort fertig - JSON wird über response_uri zurückgegeben
+    snprintf(response_uri, response_uri_len, "/api/relay/response");
+}
+
+// Dynamischer Content-Generator
+void WlanRelais::init_http_server(void)
+{
+    httpd_init();
+}
+
+int fs_open_custom(struct fs_file* file, const char* name)
+{
+    if (strcmp(name, "/api/relay/on") == 0) {
+        g_relais->activateRelais(true);
+        static const char response[] = "HTTP/1.1 200 OK\r\n"
+                                       "Content-Type: application/json\r\n"
+                                       "Connection: close\r\n\r\n"
+                                       "{\"status\":\"ok\",\"relay\":\"on\"}";
+        file->data = response;
+        file->len = sizeof(response) - 1;
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
+        return 1;
+    }
+    if (strcmp(name, "/api/relay/off") == 0) {
+        g_relais->activateRelais(false);
+        static const char response[] = "HTTP/1.1 200 OK\r\n"
+                                       "Content-Type: application/json\r\n"
+                                       "Connection: close\r\n\r\n"
+                                       "{\"status\":\"ok\",\"relay\":\"off\"}";
+        file->data = response;
+        file->len = sizeof(response) - 1;
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
+        return 1;
+    }
+    if (strcmp(name, "/api/relay/status") == 0) {
+        const char* state = g_relais->isRelaisActive() ? "on" : "off";
+        static char response[128];
+        snprintf(response, sizeof(response),
+                 "HTTP/1.1 200 OK\r\n"
+                 "Content-Type: application/json\r\n"
+                 "Connection: close\r\n\r\n"
+                 "{\"status\":\"ok\",\"relay\":\"%s\"}",
+                 state);
+        file->data = response;
+        file->len = strlen(response);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
+        return 1;
+    }
+    return 0;
+}
+
+void fs_close_custom(struct fs_file* file)
+{
+    // Nichts zu tun
 }

@@ -34,6 +34,12 @@
 // DHCP
 #define LWIP_DHCP 1
 
+// HTTPD-Optionen
+#define LWIP_HTTPD_CUSTOM_FILES 1
+#define LWIP_HTTPD_DYNAMIC_HEADERS 1
+#define LWIP_HTTPD_SUPPORT_POST 1
+#define LWIP_HTTPD_SUPPORT_GET 1
+
 // Erforderlich für pico_cyw43_arch_lwip_threadsafe_background
 #define MEMCPY(dst, src, len) memcpy(dst, src, len)
 #define SMEMCPY(dst, src, len) memcpy(dst, src, len)
