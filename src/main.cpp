@@ -52,6 +52,7 @@ WlanRelais::WlanRelais()
 {
     initGpio();
     initDisplay();
+    setState(ConnectionStatus::Disconnected);
     g_relais = this;
 }
 
@@ -79,8 +80,31 @@ void WlanRelais::initDisplay()
     oled.init(I2C_SDA_PIN, I2C_SCL_PIN);
 }
 
+void WlanRelais::setState(ConnectionStatus state)
+{
+    connection_status = state;
+    last_status_change_ms = to_ms_since_boot(get_absolute_time());
+    switch (state) {
+    case ConnectionStatus::Disconnected:
+        lights.putPixel(0, picopplib::Color(0, 0, 32));
+        break;
+    case ConnectionStatus::Connecting:
+        lights.putPixel(0, picopplib::Color(16, 16, 0));
+        break;
+    case ConnectionStatus::Connected:
+        lights.putPixel(0, picopplib::Color(0, 16, 0));
+        break;
+    case ConnectionStatus::Error:
+        lights.putPixel(0, picopplib::Color(127, 0, 0));
+        break;
+    }
+    lights.write();
+    sleep_ms(100);
+}
+
 void WlanRelais::enterUsbBoot()
 {
+    setState(ConnectionStatus::Disconnected);
     gpio_put(LED_PIN, 1);
     MessageBox("WlanRelais", "Reset button pressed...");
     lights.clear(picopplib::Color(0, 0, 16));
@@ -112,8 +136,6 @@ void WlanRelais::run()
 {
     uint32_t start_time_ms = to_ms_since_boot(get_absolute_time());
     // MessageBox("WlanRelais", "Running...");
-    lights.putPixel(0, picopplib::Color(0, 16, 0));
-    lights.write();
     while (1) {
 
         if (gpio_get(USB_BOOT_PIN) == 0) {
@@ -121,9 +143,10 @@ void WlanRelais::run()
             enterUsbBoot();
         }
         if (gpio_get(RELAIS_BUTTON) == 0) {
-            // activateRelais(true);
-        } else {
-            // activateRelais(false);
+            toggleRelais();
+            while (gpio_get(RELAIS_BUTTON) == 0) {
+                sleep_ms(1);
+            }
         }
 
         led_blinking_task();
@@ -132,7 +155,25 @@ void WlanRelais::run()
             start_time_ms = current_time_ms;
             lights.write();
         }
+        if (display_is_on && current_time_ms > last_display_change_ms + display_timeout_ms) {
+            oled.clearDisplay();
+            display_is_on = false;
+        }
+        if (connection_status != ConnectionStatus::Connected && current_time_ms > last_status_change_ms + 10000) {
+            MessageBox("Reboot", "Reboot and try to reconnect...");
+            sleep_ms(1000);
+            watchdog_reboot(0, 0, 0);
+        }
         sleep_ms(1);
+    }
+}
+
+void WlanRelais::toggleRelais()
+{
+    if (relais_state == 0) {
+        activateRelais(true);
+    } else {
+        activateRelais(false);
     }
 }
 
@@ -141,9 +182,11 @@ void WlanRelais::activateRelais(bool activate)
     if (activate && relais_state == 0) {
         gpio_put(RELAY_PIN, 1);
         relais_state = 1;
+        showStatus();
     } else if (!activate && relais_state == 1) {
         gpio_put(RELAY_PIN, 0);
         relais_state = 0;
+        showStatus();
     }
 }
 
@@ -210,26 +253,29 @@ void WlanRelais::MessageBox(const picopplib::String& subject, const picopplib::S
     picopplib::Font font;
     font.setColor(picopplib::Color(255, 255, 255));
     font.setOrientation(picopplib::Font::Orientation::TOP);
-    font.setSize(14);
+    font.setSize(12);
     font.setBold(true);
     screen.clear(0);
     screen.print(font, 0, -2, subject);
-    screen.line(0, 16, 127, 16, 1);
-    screen.line(0, 17, 127, 17, 1);
+    screen.line(0, 13, 127, 13, 1);
+    screen.line(0, 14, 127, 14, 1);
 
-    font.setSize(10);
+    font.setSize(9);
     font.setBold(false);
     picopplib::Array lines = wrapString(font, message, 128);
 
-    int y = 18;
+    int y = 15;
     for (const auto& line : lines) {
         if (y > 64) break;
         screen.print(font, 0, y, line);
-        y += font.size();
+        // y += font.size();
+        y += 10;
         if (y > 64) break;
     }
     // screen.print(font, 0, 18, message);
     oled.draw(screen);
+    last_display_change_ms = to_ms_since_boot(get_absolute_time());
+    display_is_on = true;
 }
 
 void WlanRelais::Debug(const picopplib::String& message)
@@ -237,7 +283,7 @@ void WlanRelais::Debug(const picopplib::String& message)
     picopplib::Font font;
     font.setColor(picopplib::Color(255, 255, 255));
     font.setOrientation(picopplib::Font::Orientation::TOP);
-    font.setSize(10);
+    font.setSize(9);
     font.setBold(false);
     screen.clear(0);
     picopplib::Array lines = wrapString(font, message, 128);
@@ -251,10 +297,27 @@ void WlanRelais::Debug(const picopplib::String& message)
     }
 
     oled.draw(screen);
+    last_display_change_ms = to_ms_since_boot(get_absolute_time());
+    display_is_on = true;
+}
+
+void WlanRelais::showStatus()
+{
+    uint8_t mac[6];
+    int res = cyw43_wifi_get_mac(&cyw43_state, CYW43_ITF_STA, mac);
+    picopplib::String macStr;
+    if (res == 0) {
+        // Formatierung in einen String (Hexadezimal)
+        macStr = picopplib::ToString("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
+    const ip4_addr_t* ip = netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]);
+    picopplib::String ipStr = picopplib::ToString("%d.%d.%d.%d", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
+    MessageBox("Connected!", "IP: " + ipStr + "\nMAC: " + macStr + "\nRelay: " + (isRelaisActive() ? "ON" : "OFF"));
 }
 
 void WlanRelais::init_wlan()
 {
+    setState(ConnectionStatus::Connecting);
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_GERMANY)) {
         MessageBox("WlanRelais", "Wi-Fi init failed");
         return;
@@ -268,7 +331,7 @@ void WlanRelais::init_wlan()
     if (res == 0) {
         // Formatierung in einen String (Hexadezimal)
         macStr = picopplib::ToString("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        MessageBox("WlanRelais", "MAC-Address:\n" + macStr);
+        MessageBox("Connecting...", "MAC:" + macStr + "\nSSID: " + WIFI_SSID);
     }
 
     if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 60000)) {
@@ -289,14 +352,13 @@ void WlanRelais::init_wlan()
             errorMsg = picopplib::ToString("Status: %d", status);
             break;
         }
-
-        Debug(errorMsg + "\nMAC:\n" + macStr);
+        MessageBox("Error", errorMsg + "\nMAC: " + macStr);
+        setState(ConnectionStatus::Error);
 
     } else {
-        const ip4_addr_t* ip = netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]);
-        picopplib::String ipStr = picopplib::ToString("%d.%d.%d.%d", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
-        MessageBox("Connected!", "IP: " + ipStr + "\nMAC:\n" + macStr);
         init_http_server();
+        setState(ConnectionStatus::Connected);
+        showStatus();
     }
 }
 
@@ -358,6 +420,24 @@ int fs_open_custom(struct fs_file* file, const char* name)
                                        "Content-Type: application/json\r\n"
                                        "Connection: close\r\n\r\n"
                                        "{\"status\":\"ok\",\"relay\":\"off\"}";
+        file->data = response;
+        file->len = sizeof(response) - 1;
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
+        return 1;
+    }
+    if (strcmp(name, "/api/relay/switch") == 0) {
+        if (g_relais->isRelaisActive()) {
+            g_relais->activateRelais(false);
+            sleep_ms(1000);
+        }
+        g_relais->activateRelais(true);
+        sleep_ms(500);
+        g_relais->activateRelais(false);
+        static const char response[] = "HTTP/1.1 200 OK\r\n"
+                                       "Content-Type: application/json\r\n"
+                                       "Connection: close\r\n\r\n"
+                                       "{\"status\":\"ok\",\"relay\":\"switched\"}";
         file->data = response;
         file->len = sizeof(response) - 1;
         file->index = file->len;

@@ -33,6 +33,14 @@ void loadFonts(picopplib::Grafix& gfx);
 size_t get_free_heap();
 picopplib::Array wrapString(const picopplib::Font& font, const picopplib::String& str, int width);
 
+enum class ConnectionStatus
+{
+    Disconnected,
+    Connecting,
+    Connected,
+    Error,
+};
+
 class WlanRelais
 {
 private:
@@ -42,12 +50,19 @@ private:
     uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
     bool led_state = false;
     uint8_t relais_state = 0;
+    ConnectionStatus connection_status = ConnectionStatus::Disconnected;
+    uint32_t last_display_change_ms = 0;
+    uint32_t display_timeout_ms = 10000;
+    uint32_t last_status_change_ms = 0;
+    bool display_is_on = true;
 
 private:
     void led_blinking_task();
     void initGpio();
     void initDisplay();
     void enterUsbBoot();
+    void toggleRelais();
+    void showStatus();
 
 public:
     WlanRelais();
@@ -61,6 +76,7 @@ public:
     {
         return relais_state == 1;
     }
+    void setState(ConnectionStatus state);
 };
 
 #endif // WLANRELAIS_H
