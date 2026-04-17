@@ -162,6 +162,10 @@ void WlanRelais::run()
             watchdog_reboot(0, 0, 0);
         }
         relais.update(current_time_ms);
+        if (connection_status == ConnectionStatus::Connected && current_time_ms > next_wlan_check_ms) {
+            checkWlanConnection();
+            next_wlan_check_ms = current_time_ms + 10000;
+        }
         sleep_ms(1);
     }
 }
@@ -334,7 +338,30 @@ void WlanRelais::init_wlan()
     } else {
         init_http_server();
         setState(ConnectionStatus::Connected);
+        next_wlan_check_ms = to_ms_since_boot(get_absolute_time()) + 10000;
         showStatus();
+    }
+}
+
+void WlanRelais::checkWlanConnection()
+{
+    int status = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
+
+    if (connection_status == ConnectionStatus::Connected && status != CYW43_LINK_UP) {
+        MessageBox("WLAN Error", "Reconnecting...");
+        setState(ConnectionStatus::Connecting);
+
+        // Versuche Reconnect
+        if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000) == 0) {
+            setState(ConnectionStatus::Connected);
+            showStatus();
+        } else {
+            // Reconnect fehlgeschlagen → Reboot
+            MessageBox("WLAN Error", "Reconnect failed! Rebooting...");
+            setState(ConnectionStatus::Error);
+            sleep_ms(2000);
+            watchdog_reboot(0, 0, 0);
+        }
     }
 }
 
@@ -414,6 +441,19 @@ int fs_open_custom(struct fs_file* file, const char* name)
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
         return 1;
     }
+    if (strcmp(name, "/api/relay/toggle") == 0) {
+        g_relais->relais.requestCommand(Relais::Command::Toggle);
+        static const char response[] = "HTTP/1.1 200 OK\r\n"
+                                       "Content-Type: application/json\r\n"
+                                       "Connection: close\r\n\r\n"
+                                       "{\"status\":\"ok\",\"relay\":\"toggled\"}";
+        file->data = response;
+        file->len = sizeof(response) - 1;
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
+        return 1;
+    }
+
     if (strcmp(name, "/api/relay/status") == 0) {
         const char* state = g_relais->relais.isActive() ? "on" : "off";
         static char response[128];

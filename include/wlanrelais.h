@@ -15,7 +15,7 @@
 #define WS2812_PIN 14
 #define RELAIS_BUTTON 13
 
-#define RELAY_PIN 18
+#define RELAY_PIN 12
 
 /* Blink pattern
  * - 250 ms  : device not mounted
@@ -89,13 +89,14 @@ class WlanRelais
 private:
     Oled oled;
     picopplib::Drawable screen = picopplib::Drawable(128, 64);
-    LightStrip lights = LightStrip(WS2812_PIN, 7);
+    LightStrip lights = LightStrip(WS2812_PIN, 1);
     uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
     bool led_state = false;
     ConnectionStatus connection_status = ConnectionStatus::Disconnected;
     uint32_t last_display_change_ms = 0;
     uint32_t display_timeout_ms = 10000;
     uint32_t last_status_change_ms = 0;
+    uint32_t next_wlan_check_ms = 0;
     bool display_is_on = true;
 
 private:
@@ -103,6 +104,7 @@ private:
     void initGpio();
     void initDisplay();
     void enterUsbBoot();
+    void checkWlanConnection();
 
 public:
     Relais relais;

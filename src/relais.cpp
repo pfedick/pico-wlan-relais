@@ -60,7 +60,6 @@ void Relais::processPendingCommand()
         break;
     case Command::Pulse:
         if (state) {
-            // Already on, just turn off after pulse duration
             setState(false);
             pulse_state = PulseState::WaitingForOn;
             pulse_next_action_ms = to_ms_since_boot(get_absolute_time()) + 1000;
