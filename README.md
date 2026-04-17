@@ -87,6 +87,7 @@ Die IP-Adresse erhält er über DHCP von deinem Router. In der Regel ist das ein
 ### API-Endpunkte
 | Endpunkt | Methode | Beschreibung |
 | :--- | :--- | :--- |
+| `/` | GET | Zeigt eine einfache HTML-Seite mit Informationen zum Gerät und Links zu den Relais-Steuerungsendpunkten an |
 | `/api/relay/on` | GET | Schaltet das Relais ein |
 | `/api/relay/off` | GET | Schaltet das Relais aus |
 | `/api/relay/toggle` | GET | Wechselt den Zustand des Relais (ein -> aus, aus -> ein) |
