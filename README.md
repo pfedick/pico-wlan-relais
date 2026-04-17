@@ -2,8 +2,6 @@
 
 Dieses Projekt ist ein WLAN-RELAIS-Schalter für den Raspberry Pi Pico W oder Pico 2 W. Es kann verwendet werden, um ein an ein Relais angeschlossenes Gerät ein- und auszuschalten, oder auch den Einschaltknopf eines PCs zu drücken.
 
-Das Projekt basiert auf dem pico-sdk und den pico-examples. Das Projekt ist in C++ geschrieben und verwendet das pico-sdk für den Hardwarezugriff.
-
 
 ## Hardware
 Der Aufbau besteht aus folgenden Komponenten:
