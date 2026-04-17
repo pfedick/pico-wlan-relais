@@ -54,38 +54,30 @@ void httpd_post_finished(void* connection, char* response_uri, u16_t response_ur
     snprintf(response_uri, response_uri_len, "/api/relay/response");
 }
 
-// Statische HTML-Seite (im Flash, nicht RAM)
-static const char html_header[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
-static const char html_page[] = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
-                                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                                "<title>WLAN Relais</title><style>"
-                                "body{font-family:Arial;max-width:600px;margin:50px auto;padding:20px;background:#f5f5f5}"
-                                "h1{color:#333;border-bottom:2px solid #4CAF50;padding-bottom:10px}"
-                                ".btn{display:block;padding:12px;margin:10px 0;text-decoration:none;background:#4CAF50;"
-                                "color:#fff;border-radius:5px;text-align:center;font-weight:bold}"
-                                ".api{background:#fff;padding:10px;margin:5px 0;border-left:3px solid #2196F3}"
-                                "</style></head><body>"
-                                "<h1>WLAN Relais Control</h1>"
-                                "<a class='btn' href='/api/relay/on'>Turn ON</a>"
-                                "<a class='btn' href='/api/relay/off'>Turn OFF</a>"
-                                "<a class='btn' href='/api/relay/toggle'>Toggle</a>"
-                                "<a class='btn' href='/api/relay/pulse'>Pulse</a>"
-                                "<h2>API Endpoints</h2>"
-                                "<div class='api'>GET /api/relay/on</div>"
-                                "<div class='api'>GET /api/relay/off</div>"
-                                "<div class='api'>GET /api/relay/toggle</div>"
-                                "<div class='api'>GET /api/relay/pulse</div>"
-                                "<div class='api'>GET /api/relay/status (JSON)</div>"
-                                "</body></html>";
-
 int fs_open_custom(struct fs_file* file, const char* name)
 {
-    // Root-Seite mit API-Dokumentation
+    // Root-Seite mit API-Doku
     if (strcmp(name, "/") == 0 || strcmp(name, "/index.html") == 0) {
-        static char response[1024];
-        snprintf(response, sizeof(response), "%s%s", html_header, html_page);
+        static const char response[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+                                       "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+                                       "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                                       "<title>WLAN Relais</title><style>"
+                                       "body{font-family:Arial;max-width:500px;margin:20px auto;padding:15px}"
+                                       "h1{color:#333}a{display:block;padding:10px;margin:8px 0;background:#4CAF50;"
+                                       "color:#fff;text-decoration:none;border-radius:4px;text-align:center}"
+                                       "a:hover{background:#45a049}.info{color:#666;font-size:14px;margin-top:20px}"
+                                       "</style></head><body>"
+                                       "<h1>WLAN Relais</h1>"
+                                       "<a href='/api/relay/on'>Turn ON</a>"
+                                       "<a href='/api/relay/off'>Turn OFF</a>"
+                                       "<a href='/api/relay/toggle'>Toggle</a>"
+                                       "<a href='/api/relay/pulse'>Pulse (500ms)</a>"
+                                       "<div class='info'><b>API Endpoints:</b><br>"
+                                       "GET /api/relay/on<br>GET /api/relay/off<br>GET /api/relay/toggle<br>"
+                                       "GET /api/relay/pulse<br>GET /api/relay/status (JSON)</div>"
+                                       "</body></html>";
         file->data = response;
-        file->len = strlen(response);
+        file->len = sizeof(response) - 1;
         file->index = file->len;
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
         return 1;
