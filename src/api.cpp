@@ -72,6 +72,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
                                        "<a href='/api/relay/off'>Turn OFF</a>"
                                        "<a href='/api/relay/toggle'>Toggle</a>"
                                        "<a href='/api/relay/pulse'>Pulse (500ms)</a>"
+                                       "<a href='/api/relay/status'>Show status</a>"
                                        "<div class='info'><b>API Endpoints:</b><br>"
                                        "GET /api/relay/on<br>GET /api/relay/off<br>GET /api/relay/toggle<br>"
                                        "GET /api/relay/pulse<br>GET /api/relay/status (JSON)</div>"
