@@ -25,6 +25,38 @@
 
 extern WlanRelais* g_relais;
 
+// CGI-Handler für /pulse mit Query-Parameter
+const char* cgi_pulse_handler(int iIndex, int iNumParams, char* pcParam[], char* pcValue[])
+{
+    uint32_t pulse_ms = 500; // Default
+
+    // Parameter durchsuchen: ?l=1000
+    for (int i = 0; i < iNumParams; i++) {
+        if (strcmp(pcParam[i], "l") == 0) {
+            pulse_ms = atoi(pcValue[i]);
+            // Sicherheitscheck: Min 100ms, Max 30s
+            if (pulse_ms < 100) pulse_ms = 100;
+            if (pulse_ms > 30000) pulse_ms = 30000;
+            break;
+        }
+    }
+
+    g_relais->relais.setPulseLength(pulse_ms);
+    g_relais->relais.requestCommand(Relais::Command::Pulse);
+
+    return "/pulse_response.json";
+}
+
+// CGI-Handler registrieren
+static const tCGI cgi_handlers[] = {
+    {"/pulse", cgi_pulse_handler},
+};
+
+void init_cgi_handlers(void)
+{
+    http_set_cgi_handlers(cgi_handlers, 1);
+}
+
 // Custom Handler für JSON-Response
 err_t httpd_post_begin(void* connection,
                        const char* uri,
@@ -51,11 +83,27 @@ err_t httpd_post_receive_data(void* connection, struct pbuf* p)
 void httpd_post_finished(void* connection, char* response_uri, u16_t response_uri_len)
 {
     // Antwort fertig - JSON wird über response_uri zurückgegeben
-    snprintf(response_uri, response_uri_len, "/api/relay/response");
+    snprintf(response_uri, response_uri_len, "/response");
 }
 
 int fs_open_custom(struct fs_file* file, const char* name)
 {
+    // CGI-Response für /pulse
+    if (strcmp(name, "/pulse_response.json") == 0) {
+        static char response[128];
+        snprintf(response, sizeof(response),
+                 "HTTP/1.1 200 OK\r\n"
+                 "Content-Type: application/json\r\n"
+                 "Connection: close\r\n\r\n"
+                 "{\"status\":\"ok\",\"relay\":\"pulsed\",\"duration\":%u}",
+                 g_relais->relais.getPulseLength());
+        file->data = response;
+        file->len = strlen(response);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
+        return 1;
+    }
+
     // Root-Seite mit API-Doku
     if (strcmp(name, "/") == 0 || strcmp(name, "/index.html") == 0) {
         static const char response[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
@@ -68,14 +116,14 @@ int fs_open_custom(struct fs_file* file, const char* name)
                                        "a:hover{background:#45a049}.info{color:#666;font-size:14px;margin-top:20px}"
                                        "</style></head><body>"
                                        "<h1>WLAN Relais</h1>"
-                                       "<a href='/api/relay/on'>Turn ON</a>"
-                                       "<a href='/api/relay/off'>Turn OFF</a>"
-                                       "<a href='/api/relay/toggle'>Toggle</a>"
-                                       "<a href='/api/relay/pulse'>Pulse (500ms)</a>"
-                                       "<a href='/api/relay/status'>Show status</a>"
+                                       "<a href='/on'>Turn ON</a>"
+                                       "<a href='/off'>Turn OFF</a>"
+                                       "<a href='/toggle'>Toggle</a>"
+                                       "<a href='/pulse'>Pulse (Default = 500ms)</a>"
+                                       "<a href='/status'>Show status</a>"
                                        "<div class='info'><b>API Endpoints:</b><br>"
-                                       "GET /api/relay/on<br>GET /api/relay/off<br>GET /api/relay/toggle<br>"
-                                       "GET /api/relay/pulse<br>GET /api/relay/status (JSON)</div>"
+                                       "GET /on<br>GET /off<br>GET /toggle<br>"
+                                       "GET /pulse[?l=xxxx]<br>GET /status (JSON)</div>"
                                        "</body></html>";
         file->data = response;
         file->len = sizeof(response) - 1;
@@ -84,7 +132,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
         return 1;
     }
 
-    if (strcmp(name, "/api/relay/on") == 0) {
+    if (strcmp(name, "/on") == 0) {
         g_relais->relais.requestCommand(Relais::Command::On);
         static const char response[] = "HTTP/1.1 200 OK\r\n"
                                        "Content-Type: application/json\r\n"
@@ -96,7 +144,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
         return 1;
     }
-    if (strcmp(name, "/api/relay/off") == 0) {
+    if (strcmp(name, "/off") == 0) {
         g_relais->relais.requestCommand(Relais::Command::Off);
         static const char response[] = "HTTP/1.1 200 OK\r\n"
                                        "Content-Type: application/json\r\n"
@@ -108,19 +156,9 @@ int fs_open_custom(struct fs_file* file, const char* name)
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
         return 1;
     }
-    if (strcmp(name, "/api/relay/pulse") == 0) {
-        g_relais->relais.requestCommand(Relais::Command::Pulse);
-        static const char response[] = "HTTP/1.1 200 OK\r\n"
-                                       "Content-Type: application/json\r\n"
-                                       "Connection: close\r\n\r\n"
-                                       "{\"status\":\"ok\",\"relay\":\"pulsed\"}";
-        file->data = response;
-        file->len = sizeof(response) - 1;
-        file->index = file->len;
-        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
-        return 1;
-    }
-    if (strcmp(name, "/api/relay/toggle") == 0) {
+    // /pulse wird jetzt über CGI-Handler behandelt (siehe cgi_pulse_handler oben)
+
+    if (strcmp(name, "/toggle") == 0) {
         g_relais->relais.requestCommand(Relais::Command::Toggle);
         static const char response[] = "HTTP/1.1 200 OK\r\n"
                                        "Content-Type: application/json\r\n"
@@ -133,7 +171,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
         return 1;
     }
 
-    if (strcmp(name, "/api/relay/status") == 0) {
+    if (strcmp(name, "/status") == 0) {
         const char* state = g_relais->relais.isActive() ? "on" : "off";
         static char response[128];
         snprintf(response, sizeof(response),

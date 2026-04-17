@@ -31,6 +31,7 @@ void Relais::init(uint gpio_pin, WlanRelais* controller)
     gpio_put(pin, 0);
     state = false;
     relaisController = controller;
+    pulse_length_ms = 500;
 }
 
 void Relais::update(uint32_t now)
@@ -42,6 +43,11 @@ void Relais::update(uint32_t now)
 void Relais::requestCommand(Command cmd)
 {
     pending_command = cmd;
+}
+
+void Relais::setPulseLength(uint32_t ms)
+{
+    pulse_length_ms = ms;
 }
 
 void Relais::processPendingCommand()
@@ -67,7 +73,7 @@ void Relais::processPendingCommand()
             // Turn on and schedule off
             setState(true);
             pulse_state = PulseState::PulseOn;
-            pulse_next_action_ms = to_ms_since_boot(get_absolute_time()) + 500;
+            pulse_next_action_ms = to_ms_since_boot(get_absolute_time()) + pulse_length_ms;
         }
         break;
     }
@@ -83,7 +89,7 @@ void Relais::processPulseStateMachine(uint32_t now)
         if (now >= pulse_next_action_ms) {
             setState(true);
             pulse_state = PulseState::PulseOn;
-            pulse_next_action_ms = now + 500;
+            pulse_next_action_ms = now + pulse_length_ms;
         }
         break;
     case PulseState::PulseOn:

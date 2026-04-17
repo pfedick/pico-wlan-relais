@@ -58,6 +58,11 @@ public:
     void init(uint gpio_pin, WlanRelais* controller = nullptr);
     void update(uint32_t now);        // In Main-Loop aufrufen
     void requestCommand(Command cmd); // Thread-safe
+    void setPulseLength(uint32_t ms);
+    uint32_t getPulseLength() const
+    {
+        return pulse_length_ms;
+    }
     bool isActive() const
     {
         return state;
@@ -81,6 +86,7 @@ private:
     volatile Command pending_command = Command::None;
     PulseState pulse_state = PulseState::Idle;
     uint32_t pulse_next_action_ms = 0;
+    uint32_t pulse_length_ms = 500;
     WlanRelais* relaisController = nullptr;
 };
 

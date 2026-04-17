@@ -366,7 +366,10 @@ void WlanRelais::checkWlanConnection()
 }
 
 // Dynamischer Content-Generator
+extern void init_cgi_handlers(void); // Definiert in api.cpp
+
 void WlanRelais::init_http_server(void)
 {
+    init_cgi_handlers(); // CGI-Handler für Query-Parameter registrieren
     httpd_init();
 }

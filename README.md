@@ -92,11 +92,12 @@ Die IP-Adresse erhält er über DHCP von deinem Router. In der Regel ist das ein
 | Endpunkt | Methode | Beschreibung |
 | :--- | :--- | :--- |
 | `/` | GET | Zeigt eine einfache HTML-Seite mit Informationen zum Gerät und Links zu den Relais-Steuerungsendpunkten an |
-| `/api/relay/on` | GET | Schaltet das Relais ein |
-| `/api/relay/off` | GET | Schaltet das Relais aus |
-| `/api/relay/toggle` | GET | Wechselt den Zustand des Relais (ein -> aus, aus -> ein) |
-| `/api/relay/pulse` | GET | Schaltet das Relais für 500 Millisikunden ein und dann wieder aus |
-| `/api/status` | GET | Gibt den aktuellen Status des Relais zurück (JSON: `{ "relais": "on" }` oder `{ "relais": "off" }`) |
+| `/on` | GET | Schaltet das Relais ein |
+| `/off` | GET | Schaltet das Relais aus |
+| `/toggle` | GET | Wechselt den Zustand des Relais (ein -> aus, aus -> ein) |
+| `/pulse` | GET | Schaltet das Relais für 500 Millisikunden ein und dann wieder aus. |
+ | `/pulse?l=xxxx` | GET | Optional, kann die Dauer, die das Relais eingeschaltet werden soll, bevor es wieder ausgeht, über den Parameter "-l=xxxx" angegeben werden, wobei xxxx die Dauer in Millisekunden angibt. |
+| `/status` | GET | Gibt den aktuellen Status des Relais zurück (JSON: `{ "relais": "on" }` oder `{ "relais": "off" }`) |
 
 Um die API anzusteuern kann zum Beispiel ein Browser oder ein Tool wie `curl` verwendet werden. Beispiel:
 
