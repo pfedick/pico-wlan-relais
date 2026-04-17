@@ -338,9 +338,9 @@ void WlanRelais::init_wlan()
     } else {
         init_http_server();
         setState(ConnectionStatus::Connected);
-        next_wlan_check_ms = to_ms_since_boot(get_absolute_time()) + 10000;
         showStatus();
     }
+    next_wlan_check_ms = to_ms_since_boot(get_absolute_time()) + 10000;
 }
 
 void WlanRelais::checkWlanConnection()
@@ -365,114 +365,8 @@ void WlanRelais::checkWlanConnection()
     }
 }
 
-#include "lwip/apps/httpd.h"
-#include "lwip/apps/fs.h"
-
-// Custom Handler für JSON-Response
-err_t httpd_post_begin(void* connection,
-                       const char* uri,
-                       const char* http_request,
-                       u16_t http_request_len,
-                       int content_len,
-                       char* response_uri,
-                       u16_t response_uri_len,
-                       u8_t* post_auto_wnd)
-{
-    if (strncmp(uri, "/api/relay", 10) == 0) {
-        // JSON wird direkt geschrieben
-        return ERR_OK;
-    }
-    return ERR_VAL;
-}
-
-err_t httpd_post_receive_data(void* connection, struct pbuf* p)
-{
-    // Daten empfangen (für POST)
-    return ERR_OK;
-}
-
-void httpd_post_finished(void* connection, char* response_uri, u16_t response_uri_len)
-{
-    // Antwort fertig - JSON wird über response_uri zurückgegeben
-    snprintf(response_uri, response_uri_len, "/api/relay/response");
-}
-
 // Dynamischer Content-Generator
 void WlanRelais::init_http_server(void)
 {
     httpd_init();
-}
-
-int fs_open_custom(struct fs_file* file, const char* name)
-{
-    if (strcmp(name, "/api/relay/on") == 0) {
-        g_relais->relais.requestCommand(Relais::Command::On);
-        static const char response[] = "HTTP/1.1 200 OK\r\n"
-                                       "Content-Type: application/json\r\n"
-                                       "Connection: close\r\n\r\n"
-                                       "{\"status\":\"ok\",\"relay\":\"on\"}";
-        file->data = response;
-        file->len = sizeof(response) - 1;
-        file->index = file->len;
-        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
-        return 1;
-    }
-    if (strcmp(name, "/api/relay/off") == 0) {
-        g_relais->relais.requestCommand(Relais::Command::Off);
-        static const char response[] = "HTTP/1.1 200 OK\r\n"
-                                       "Content-Type: application/json\r\n"
-                                       "Connection: close\r\n\r\n"
-                                       "{\"status\":\"ok\",\"relay\":\"off\"}";
-        file->data = response;
-        file->len = sizeof(response) - 1;
-        file->index = file->len;
-        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
-        return 1;
-    }
-    if (strcmp(name, "/api/relay/pulse") == 0) {
-        g_relais->relais.requestCommand(Relais::Command::Pulse);
-        static const char response[] = "HTTP/1.1 200 OK\r\n"
-                                       "Content-Type: application/json\r\n"
-                                       "Connection: close\r\n\r\n"
-                                       "{\"status\":\"ok\",\"relay\":\"pulsed\"}";
-        file->data = response;
-        file->len = sizeof(response) - 1;
-        file->index = file->len;
-        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
-        return 1;
-    }
-    if (strcmp(name, "/api/relay/toggle") == 0) {
-        g_relais->relais.requestCommand(Relais::Command::Toggle);
-        static const char response[] = "HTTP/1.1 200 OK\r\n"
-                                       "Content-Type: application/json\r\n"
-                                       "Connection: close\r\n\r\n"
-                                       "{\"status\":\"ok\",\"relay\":\"toggled\"}";
-        file->data = response;
-        file->len = sizeof(response) - 1;
-        file->index = file->len;
-        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
-        return 1;
-    }
-
-    if (strcmp(name, "/api/relay/status") == 0) {
-        const char* state = g_relais->relais.isActive() ? "on" : "off";
-        static char response[128];
-        snprintf(response, sizeof(response),
-                 "HTTP/1.1 200 OK\r\n"
-                 "Content-Type: application/json\r\n"
-                 "Connection: close\r\n\r\n"
-                 "{\"status\":\"ok\",\"relay\":\"%s\"}",
-                 state);
-        file->data = response;
-        file->len = strlen(response);
-        file->index = file->len;
-        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
-        return 1;
-    }
-    return 0;
-}
-
-void fs_close_custom(struct fs_file* file)
-{
-    // Nichts zu tun
 }

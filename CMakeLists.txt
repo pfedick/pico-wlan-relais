@@ -55,6 +55,7 @@ add_executable(wlanrelais
     src/main.cpp
     src/resources.cpp
     src/relais.cpp
+    src/api.cpp
 
 
     pico-pplib/src/core/string.cpp
