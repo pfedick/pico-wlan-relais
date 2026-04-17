@@ -25,7 +25,6 @@
 
 extern WlanRelais* g_relais;
 
-// CGI-Handler für /pulse mit Query-Parameter
 const char* cgi_pulse_handler(int iIndex, int iNumParams, char* pcParam[], char* pcValue[])
 {
     uint32_t pulse_ms = 500; // Default
@@ -47,7 +46,6 @@ const char* cgi_pulse_handler(int iIndex, int iNumParams, char* pcParam[], char*
     return "/pulse_response.json";
 }
 
-// CGI-Handler registrieren
 static const tCGI cgi_handlers[] = {
     {"/pulse", cgi_pulse_handler},
 };
@@ -55,35 +53,6 @@ static const tCGI cgi_handlers[] = {
 void init_cgi_handlers(void)
 {
     http_set_cgi_handlers(cgi_handlers, 1);
-}
-
-// Custom Handler für JSON-Response
-err_t httpd_post_begin(void* connection,
-                       const char* uri,
-                       const char* http_request,
-                       u16_t http_request_len,
-                       int content_len,
-                       char* response_uri,
-                       u16_t response_uri_len,
-                       u8_t* post_auto_wnd)
-{
-    if (strncmp(uri, "/api/relay", 10) == 0) {
-        // JSON wird direkt geschrieben
-        return ERR_OK;
-    }
-    return ERR_VAL;
-}
-
-err_t httpd_post_receive_data(void* connection, struct pbuf* p)
-{
-    // Daten empfangen (für POST)
-    return ERR_OK;
-}
-
-void httpd_post_finished(void* connection, char* response_uri, u16_t response_uri_len)
-{
-    // Antwort fertig - JSON wird über response_uri zurückgegeben
-    snprintf(response_uri, response_uri_len, "/response");
 }
 
 int fs_open_custom(struct fs_file* file, const char* name)
@@ -156,7 +125,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
         return 1;
     }
-    // /pulse wird jetzt über CGI-Handler behandelt (siehe cgi_pulse_handler oben)
+    // /pulse wird über CGI-Handler behandelt (siehe cgi_pulse_handler oben)
 
     if (strcmp(name, "/toggle") == 0) {
         g_relais->relais.requestCommand(Relais::Command::Toggle);

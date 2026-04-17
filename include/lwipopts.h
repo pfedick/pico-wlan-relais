@@ -37,7 +37,7 @@
 // HTTPD-Optionen
 #define LWIP_HTTPD_CUSTOM_FILES 1
 #define LWIP_HTTPD_DYNAMIC_HEADERS 1
-#define LWIP_HTTPD_SUPPORT_POST 1
+#define LWIP_HTTPD_SUPPORT_POST 0
 #define LWIP_HTTPD_SUPPORT_GET 1
 
 // Erforderlich für pico_cyw43_arch_lwip_threadsafe_background
