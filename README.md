@@ -5,6 +5,34 @@ Dieses Projekt ist ein WLAN-RELAIS-Schalter für den Raspberry Pi Pico W oder Pi
 Das Projekt basiert auf dem pico-sdk und den pico-examples. Das Projekt ist in C++ geschrieben und verwendet das pico-sdk für den Hardwarezugriff.
 
 
+## Hardware
+Der Aufbau besteht aus folgenden Komponenten:
+- Raspberry Pi Pico W oder Pico 2 W
+- OLED Display (basierend auf SSD1306, über I2C angeschlossen) 
+- Relay Module (HW-803, 5V, 1 Kanal, optokoppler-gesteuert)
+- RGB LED (programmierbare LED basierend auf WS2812B oder SK6812, über einen GPIO gesteuert)
+- 2 x Mikro-Schalter oder andere Taster (für Reset und Relais Toggle)
+
+Die RGB LED wird als Statusanzeige für die WLAN-Verbindung verwendet. Das OLED Display zeigt die aktuelle IP-Adresse an, sobald eine Verbindung zum WLAN hergestellt wurde. Das Relay Module kann über eine Web-API gesteuert werden, um ein angeschlossenes Gerät ein- oder auszuschalten.
+
+![Breadboard-Aufbau](./doc/breadboard_aufbau.jpg)
+
+
+### Pin-Belegung
+![PICO 2 Pinout](./doc/pico-2-r4-pinout.svg)
+
+| Pin | GPIO | Funktion |
+| :--- | :--- | :--- |
+| **16** | **GP12** | Relais |
+| **17** | **GP13** | Relais-Toggle-Button |
+| **19** | **GP14** | Status RGB Data |
+| **20** | **GP15** | Reset-Button |
+| **21** | **GP16** | I2C OLED-Display SDA |
+| **22** | **GP17** | I2C OLED-Display SCL |
+| **36** | **3.3V** | 3.3v Power for OLED-Display and RGB-LED |
+| **40** | **VBUS 5V** | 5V from USB-Port for Relais |
+
+
 ## Firmware bauen und flashen
 
 ### Quellcode auschecken / updaten
@@ -45,36 +73,6 @@ Falls der Build durchläuft und eine Pico angeschlossen und im programmiermodus 
 manuell auf den Pico kopiert werden (Pico im programmiermodus anschließen, dann sollte sie als USB-Laufwerk erscheinen).
 
 Um den Pico in den Programmiermodus zu versetzen, muss der Reset-Knopf länger als 1 Sekunde gedrückt gehalten werden. Alternativ den weißen Knopf auf der Platine des Pico gedrückt halten, während der USB-Stecker angeschlossen wird.
-
-
-
-## Hardware
-Der Aufbau besteht aus folgenden Komponenten:
-- Raspberry Pi Pico W oder Pico 2 W
-- OLED Display (basierend auf SSD1306, über I2C angeschlossen) 
-- Relay Module (HW-803, 5V, 1 Kanal, optokoppler-gesteuert)
-- RGB LED (programmierbare LED basierend auf WS2812B oder SK6812, über einen GPIO gesteuert)
-- 2 x Mikro-Schalter oder andere Taster (für Reset und Relais Toggle)
-
-Die RGB LED wird als Statusanzeige für die WLAN-Verbindung verwendet. Das OLED Display zeigt die aktuelle IP-Adresse an, sobald eine Verbindung zum WLAN hergestellt wurde. Das Relay Module kann über eine Web-API gesteuert werden, um ein angeschlossenes Gerät ein- oder auszuschalten.
-
-![Breadboard-Aufbau](./doc/breadboard_aufbau.jpg)
-
-
-### Pin-Belegung
-![PICO 2 Pinout](./doc/pico-2-r4-pinout.svg)
-
-| Pin | GPIO | Funktion |
-| :--- | :--- | :--- |
-| **16** | **GP12** | Relais |
-| **17** | **GP13** | Relais-Toggle-Button |
-| **19** | **GP14** | Status RGB Data |
-| **20** | **GP15** | Reset-Button |
-| **21** | **GP16** | I2C OLED-Display SDA |
-| **22** | **GP17** | I2C OLED-Display SCL |
-| **36** | **3.3V** | 3.3v Power for OLED-Display and RGB-LED |
-| **40** | **VBUS 5V** | 5V from USB-Port for Relais |
-
 
 
 ## Web-API
