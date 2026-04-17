@@ -62,13 +62,11 @@ void WlanRelais::initGpio()
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_put(LED_PIN, 0);
 
-    gpio_init(RELAY_PIN);
-    gpio_set_dir(RELAY_PIN, GPIO_OUT);
-    gpio_put(RELAY_PIN, 0);
-
     gpio_init(USB_BOOT_PIN);
     gpio_set_dir(USB_BOOT_PIN, GPIO_IN);
     gpio_pull_up(USB_BOOT_PIN);
+
+    relais.init(RELAY_PIN, this);
 
     gpio_init(RELAIS_BUTTON);
     gpio_set_dir(RELAIS_BUTTON, GPIO_IN);
@@ -89,7 +87,7 @@ void WlanRelais::setState(ConnectionStatus state)
         lights.putPixel(0, picopplib::Color(0, 0, 32));
         break;
     case ConnectionStatus::Connecting:
-        lights.putPixel(0, picopplib::Color(16, 16, 0));
+        lights.putPixel(0, picopplib::Color(32, 0, 32));
         break;
     case ConnectionStatus::Connected:
         lights.putPixel(0, picopplib::Color(0, 16, 0));
@@ -137,13 +135,12 @@ void WlanRelais::run()
     uint32_t start_time_ms = to_ms_since_boot(get_absolute_time());
     // MessageBox("WlanRelais", "Running...");
     while (1) {
-
         if (gpio_get(USB_BOOT_PIN) == 0) {
             sleep_ms(1);
             enterUsbBoot();
         }
         if (gpio_get(RELAIS_BUTTON) == 0) {
-            toggleRelais();
+            relais.requestCommand(Relais::Command::Toggle);
             while (gpio_get(RELAIS_BUTTON) == 0) {
                 sleep_ms(1);
             }
@@ -164,29 +161,8 @@ void WlanRelais::run()
             sleep_ms(1000);
             watchdog_reboot(0, 0, 0);
         }
+        relais.update(current_time_ms);
         sleep_ms(1);
-    }
-}
-
-void WlanRelais::toggleRelais()
-{
-    if (relais_state == 0) {
-        activateRelais(true);
-    } else {
-        activateRelais(false);
-    }
-}
-
-void WlanRelais::activateRelais(bool activate)
-{
-    if (activate && relais_state == 0) {
-        gpio_put(RELAY_PIN, 1);
-        relais_state = 1;
-        showStatus();
-    } else if (!activate && relais_state == 1) {
-        gpio_put(RELAY_PIN, 0);
-        relais_state = 0;
-        showStatus();
     }
 }
 
@@ -312,7 +288,7 @@ void WlanRelais::showStatus()
     }
     const ip4_addr_t* ip = netif_ip4_addr(&cyw43_state.netif[CYW43_ITF_STA]);
     picopplib::String ipStr = picopplib::ToString("%d.%d.%d.%d", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
-    MessageBox("Connected!", "IP: " + ipStr + "\nMAC: " + macStr + "\nRelay: " + (isRelaisActive() ? "ON" : "OFF"));
+    MessageBox("Connected!", "IP: " + ipStr + "\nMAC: " + macStr + "\nRelay: " + (relais.isActive() ? "ON" : "OFF"));
 }
 
 void WlanRelais::init_wlan()
@@ -403,7 +379,7 @@ void WlanRelais::init_http_server(void)
 int fs_open_custom(struct fs_file* file, const char* name)
 {
     if (strcmp(name, "/api/relay/on") == 0) {
-        g_relais->activateRelais(true);
+        g_relais->relais.requestCommand(Relais::Command::On);
         static const char response[] = "HTTP/1.1 200 OK\r\n"
                                        "Content-Type: application/json\r\n"
                                        "Connection: close\r\n\r\n"
@@ -415,7 +391,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
         return 1;
     }
     if (strcmp(name, "/api/relay/off") == 0) {
-        g_relais->activateRelais(false);
+        g_relais->relais.requestCommand(Relais::Command::Off);
         static const char response[] = "HTTP/1.1 200 OK\r\n"
                                        "Content-Type: application/json\r\n"
                                        "Connection: close\r\n\r\n"
@@ -426,18 +402,12 @@ int fs_open_custom(struct fs_file* file, const char* name)
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED;
         return 1;
     }
-    if (strcmp(name, "/api/relay/switch") == 0) {
-        if (g_relais->isRelaisActive()) {
-            g_relais->activateRelais(false);
-            sleep_ms(1000);
-        }
-        g_relais->activateRelais(true);
-        sleep_ms(500);
-        g_relais->activateRelais(false);
+    if (strcmp(name, "/api/relay/pulse") == 0) {
+        g_relais->relais.requestCommand(Relais::Command::Pulse);
         static const char response[] = "HTTP/1.1 200 OK\r\n"
                                        "Content-Type: application/json\r\n"
                                        "Connection: close\r\n\r\n"
-                                       "{\"status\":\"ok\",\"relay\":\"switched\"}";
+                                       "{\"status\":\"ok\",\"relay\":\"pulsed\"}";
         file->data = response;
         file->len = sizeof(response) - 1;
         file->index = file->len;
@@ -445,7 +415,7 @@ int fs_open_custom(struct fs_file* file, const char* name)
         return 1;
     }
     if (strcmp(name, "/api/relay/status") == 0) {
-        const char* state = g_relais->isRelaisActive() ? "on" : "off";
+        const char* state = g_relais->relais.isActive() ? "on" : "off";
         static char response[128];
         snprintf(response, sizeof(response),
                  "HTTP/1.1 200 OK\r\n"
