@@ -62,15 +62,21 @@ SSID und Passwort entsprechend anpassen. Diese Datei wird von git ignoriert und 
 
 ### Kompilieren und Flashen
 
-Kompilieren und flashen mit:
+Kompilieren mit:
+
     make
 
+Dabei wird zuerst der Build mit cmake konfiguriert und dann die Firmware gebaut.
 
-Falls der Build durchläuft und eine Pico angeschlossen und im programmiermodus ist, wird die Firmware automatisch geflasht. Ansonsten liegt die Firmware im build-Ordner und kann mit
+Sofern alles durchläuft, ist die Firmware danach im `build`-Ordner zu finden:
 
-    make copy
+    build/wlanrelais.uf2
 
-manuell auf den Pico kopiert werden (Pico im programmiermodus anschließen, dann sollte sie als USB-Laufwerk erscheinen).
+Sofern der Pico im USB-Boot-Modus angeschlossen ist, kann diese Datei auf das Laufwerk des Pico kopiert werden.
+
+Im Makefile gibt es noch das Target "copy", was das automatisch versucht, allerdings nur auf meinem Rechner ;-) => Gerne besser machen!
+
+    make all copy
 
 Um den Pico in den Programmiermodus zu versetzen, muss der Reset-Knopf länger als 1 Sekunde gedrückt gehalten werden. Alternativ den weißen Knopf auf der Platine des Pico gedrückt halten, während der USB-Stecker angeschlossen wird.
 

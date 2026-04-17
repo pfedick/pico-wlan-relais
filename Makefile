@@ -12,11 +12,10 @@ else
 endif
 
 
-all: configure compile copy
+all: configure compile
 
 configure:
 	mkdir -p build
-	#cmake -DPICO_SDK_PATH=/git/pico-sdk -S . -B build
 	cmake -S . -B build
 
 compile:
