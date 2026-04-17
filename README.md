@@ -101,11 +101,11 @@ Die IP-Adresse erhält er über DHCP von deinem Router. In der Regel ist das ein
 
 Um die API anzusteuern kann zum Beispiel ein Browser oder ein Tool wie `curl` verwendet werden. Beispiel:
 
-    curl http://<IP-ADRESSE-DES-PICO>/api/relay/toggle
+    curl http://<IP-ADRESSE-DES-PICO>/toggle
 
 Oder im Browser:
 
-    http://<IP-ADRESSE-DES-PICO>/api/relay/toggle
+    http://<IP-ADRESSE-DES-PICO>/toggle
 
 Wichtig: Der Pico unterstützt nur HTTP, kein HTTPS. Daher muss die Verbindung unverschlüsselt erfolgen.
 
@@ -113,7 +113,7 @@ Python:
 ```python
 import requests
 
-response = requests.get("http://<IP-ADRESSE-DES-PICO>/api/relay/toggle")
+response = requests.get("http://<IP-ADRESSE-DES-PICO>/toggle")
 print(response.status_code)
 print(response.text)
 ```
